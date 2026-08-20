@@ -1,7 +1,0 @@
-build/
-
-CMakeLists.txt
-
-main.cpp
-miniaudio.c
-miniaudio.h
