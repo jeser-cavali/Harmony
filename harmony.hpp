@@ -54,59 +54,55 @@ class HarmonyEngine{
             return true;
         };
         void uninitDecoder(){
-            if(isDecoderInitiated){
-                ma_decoder_uninit(&decoder);
-                isDecoderInitiated = false;
-            }
+            isDecoderInitiated = false;
+            ma_decoder_uninit(&decoder);
+            std::cout << "[Decoder uninitiated]" << std::endl;
         };
 
         bool initDevice(){
-            if(isDecoderInitiated){
-                if(ma_device_init(NULL, &_deviceConfig, &device) != MA_SUCCESS){
-                    uninitDecoder();
-                    return false;
-                }
-                isDeviceInitiated = true;
-                return true;
+            
+            if(ma_device_init(NULL, &_deviceConfig, &device) != MA_SUCCESS){
+                uninitDecoder();
+                return false;
             }
-            return false;
+            isDeviceInitiated = true;
+            return true;
+            
         };
 
         void uninitDevice(){
-            if(isDeviceInitiated){
-                ma_device_uninit(&device);
-                isDeviceInitiated = false;
-            }
+            isDeviceInitiated = false;
+            ma_device_uninit(&device);
+            std::cout << "[Device uninitiated]" << std::endl;
         };
 
         void pauseDevice(){
-            isMusicPlaying = false;
             ma_device_stop(&device);
-        }
+            isMusicPlaying = false;
+        };
 
         void startDevice(){
-            if(isDeviceInitiated && isDecoderInitiated){
-                if(ma_device_start(&device) != MA_SUCCESS){
-                    uninitDevice();
-                    uninitDecoder();
-                    return;
-                }
+            
+            if(ma_device_start(&device) != MA_SUCCESS){
+                uninitDevice();
+                uninitDecoder();
+                return;
+            }
 
-                isMusicPlaying = true;
+            isMusicPlaying = true;
 
-                while(!isMusicFinished){
-                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-                }
+            while(!isMusicFinished){
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
 
-                musicQueue.pop();
+            musicQueue.pop();
                 
-                if(!musicQueue.empty()){
-                    pauseDevice();
-                    uninitDecoder();
-                } else{
-                    uninitDevice();
-                    uninitDecoder();
-                }
+            if(!musicQueue.empty()){
+                pauseDevice();
+                uninitDecoder();
+            } else{
+                uninitDevice();
+                uninitDecoder();
             }
         }
 
@@ -119,7 +115,18 @@ class HarmonyEngine{
         std::atomic<bool> isMusicPlaying;
         std::atomic<bool> isMusicFinished;
         std::atomic<bool> isMusicPaused;
+
+        void cleanQueue(){
+            do{
+                musicQueue.pop();
+            } while(!musicQueue.empty());
+            std::cout << "[Queue cleaned]" << std::endl;
+        }
     public:
+        bool isPaused(){
+            return isMusicPaused;
+        }
+
         HarmonyEngine(){
             _decoderConfig = ma_decoder_config_init(ma_format_f32, 2, 44100);
 
@@ -140,43 +147,29 @@ class HarmonyEngine{
             isMusicFinished = false;
             isMusicPaused = false;
         };
+        
         ~HarmonyEngine(){
-            if(isMusicPlaying){
-                ma_device_stop(&device);
-                isMusicPlaying = false;
-
-                ma_device_uninit(&device);
-                isDeviceInitiated = false;
-
-                ma_decoder_uninit(&decoder);
-                isDecoderInitiated = false;
-            } else{
+            if(!isMusicPlaying){
                 if(isDeviceInitiated){
-                    ma_device_uninit(&device);
-                    isDeviceInitiated = false;
+                    uninitDevice();
                 }
-
-                if(isDecoderInitiated && !isDeviceInitiated){
-                    ma_decoder_uninit(&decoder);
-                    isDecoderInitiated = false;
+                if(isDecoderInitiated){
+                    uninitDecoder();
                 }
             }
         };
+        
         void play(){
-            if(!isMusicPlaying && !musicQueue.empty()){
-                while(!musicQueue.empty()){
-                    if(!isDecoderInitiated){
-                        initDecoder(musicQueue.front());
-                    }
+            if(!isDecoderInitiated){
+                initDecoder(musicQueue.front());
+            }
 
-                    if(!isDeviceInitiated){
-                        initDevice();
-                    }
+            if(!isDeviceInitiated){
+                initDevice();
+            }
 
-                    if(isDecoderInitiated && isDeviceInitiated){
-                        startDevice();
-                    }
-                }
+            if(isDecoderInitiated && isDeviceInitiated){
+                startDevice();
             }
         };
         void play(std::string url){
@@ -194,11 +187,14 @@ class HarmonyEngine{
                 }
             }
 
-            play();
+            while(!musicQueue.empty()){
+                play();
+            }
         };
         void pause(){
             if(isMusicPlaying){
                 pauseDevice();
+                isMusicPaused = true;
             }
         };
         void skip(){
@@ -208,14 +204,12 @@ class HarmonyEngine{
 
             pause();
 
-            isMusicFinished = true;
+            cleanQueue();
 
             uninitDevice();
             uninitDecoder();
 
-            while(!musicQueue.empty()){
-                musicQueue.pop();
-            }
+            //musicQueue = std::queue<std::string>();
         }
         
 };
