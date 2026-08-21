@@ -162,6 +162,23 @@ class HarmonyEngine{
                 }
             }
         };
+        void play(){
+            if(!isMusicPlaying && !musicQueue.empty()){
+                while(!musicQueue.empty()){
+                    if(!isDecoderInitiated){
+                        initDecoder(musicQueue.front());
+                    }
+
+                    if(!isDeviceInitiated){
+                        initDevice();
+                    }
+
+                    if(isDecoderInitiated && isDeviceInitiated){
+                        startDevice();
+                    }
+                }
+            }
+        };
         void play(std::string url){
             // TODO: add custom error behaviour
             // Adding music to queue
@@ -177,21 +194,27 @@ class HarmonyEngine{
                 }
             }
 
-            if(!isMusicPlaying && !musicQueue.empty()){
-                // Initiate decoder
-                while(!musicQueue.empty()){
-                    if(!isDecoderInitiated){
-                        initDecoder(musicQueue.front());
-                    }
+            play();
+        };
+        void pause(){
+            if(isMusicPlaying){
+                pauseDevice();
+            }
+        };
+        void skip(){
+            isMusicFinished = true;
+        }
+        void stop(){
 
-                    if(!isDeviceInitiated){
-                        initDevice();
-                    }
+            pause();
 
-                    if(isDecoderInitiated && isDeviceInitiated){
-                        startDevice();
-                    }
-                }
+            isMusicFinished = true;
+
+            uninitDevice();
+            uninitDecoder();
+
+            while(!musicQueue.empty()){
+                musicQueue.pop();
             }
         }
         
